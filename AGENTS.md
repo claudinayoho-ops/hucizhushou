@@ -9,7 +9,7 @@
 - 技术栈：Electron 33、React 19、Vite 6、TypeScript。
 - 构建方式：electron-vite 多入口构建，包含主窗口入口和划词工具栏入口。
 - 打包目标：当前已配置 Windows 安装包（NSIS）构建（集成应用图标 `icon.ico`），并支持开机自启配置。
-- 当前重点能力：全局快捷唤起（Toggle 模式）、剪贴板读取兜底、划词助手、AI 翻译/解释/总结/搜索、多轮上下文流式对话、思维链（Reasoning）深度支持、多模型管理与翻译模型独立、图片输入（Vision）支持。
+- 当前重点能力：全局快捷唤起（Toggle 模式）、剪贴板读取兜底、划词助手、AI 翻译/解释/总结/搜索、多轮上下文流式对话、思维链（Reasoning）深度支持、多供应商与多模型管理（支持多密钥轮询）、图片输入（Vision）支持。
 
 ## 核心能力
 
@@ -22,7 +22,7 @@
 - 全局快捷键：默认 `Alt+Space` 唤起/隐藏主窗口（Toggle 模式）。
 - 托盘驻留：窗口关闭后后台运行，托盘右键菜单支持配置“开机自启”。
 - 主题与设置：API Host/Key 设定、主题色（5种精选配色）、明暗模式切换。
-- 多模型管理：支持手动添加多个模型到列表，在设置中选择默认模型；翻译功能可独立指定不同模型。
+- 多供应商与多模型管理：支持卡片式管理多个模型供应商。支持为同一供应商配置多个英文逗号分隔的 API Key，实现自动轮询切换。所有模型均与对应供应商关联，翻译功能可独立指定不同模型。
 - 图片输入（Vision）：输入框支持 Ctrl+V 粘贴截图/图片，以 OpenAI Vision 格式（`content` 数组含 `image_url` base64）发送，支持多图多轮图文对话。
 - 排版与交互：输入框支持 Shift+Enter 换行自动调节高度，全程采用 Anthropic 风格排版（Poppins + Lora 字体）。
 
@@ -128,9 +128,13 @@ npm run build:win
    - 思维链机制由 `api.ts` 支持处理，不同服务商下发格式不一。
    - 现已兼容提取 `delta.reasoning_content` 及 `delta.reasoning`，展示在特有的折叠块中（由 `ChatView` 维护展示状态）。
 4. **工具栏 UI**：修改 `SelectionToolbar` 的动作后，**必须**同频修改 Main 进程中的拦截命中区域划分，因为宽度与比例写死在 Main 环境。
-5. **多模型管理**：
-   - 存储键：`modelList`（string 数组）、`model`（默认模型）、`translateModel`（翻译专用，空字符串表示跟随默认）。
-   - `api.ts` 的 `streamChat` 接受 `options.useTranslateModel` 参数，`TranslateView` 传入此标志使翻译走独立模型。
+5. **多供应商与多模型机制**：
+   - 存储结构已从单配置升级为多供应商体系。
+   - `providers`：存储供应商数组 `{ id, name, apiHost, apiKey }`。`apiKey` 支持使用 `,` 逗号分隔的字符串存入多个 Key。
+   - `modelList`：模型状态已更改为对象数组 `[{ id: 'gpt-4o', providerId: '...' }]`，将模型强关联至供应商。
+   - `model` 与 `translateModel` 分别保存当前设定的默认对话模型与独立翻译模型选项。
+   - 请求路由：请求发起前，`api.ts` 会依据有效调用的的模型 ID，通过反查所归属的 `provider`。内部集成有 `rotateApiKey` 等效轮询方法，通过在客户端单进程级别（使用内存 MAP）记忆游标实现 key 次序切换分担负载。
+   - `streamChat` 将根据配置或传入的参数动态判断最终需访问的宿主与密钥。
 6. **图片输入（Vision）**：
    - `InputBar` 监听 `onPaste` 事件提取 `image/*` 类型的剪贴板条目，转 base64 data URL 后存入 `attachedImages` 状态。
    - `api.ts` 的 `buildUserContent()` 负责将文本+图片组装为 OpenAI Vision 格式的 `ContentPart[]`。
