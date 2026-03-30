@@ -1,12 +1,8 @@
 import { forwardRef, useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, X, Image as ImageIcon } from 'lucide-react'
+import { Loader2, X, ChevronDown, Check } from 'lucide-react'
 import ThinkingButton, { type ThinkingEffort } from './ThinkingButton'
-
-const ClaudeIcon = ({ size = 20, className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M32 4C33.2 19.6 44.4 30.8 60 32C44.4 33.2 33.2 44.4 32 60C30.8 44.4 19.6 33.2 4 32C19.6 30.8 30.8 19.6 32 4Z" fill="currentColor" />
-  </svg>
-)
+import { ProviderIcon, detectProvider } from '../utils/providers'
+import type { ModelItem } from '../types/provider'
 
 interface InputBarProps {
   value: string
@@ -23,6 +19,10 @@ interface InputBarProps {
   /** Attached images (base64 data URLs) */
   images?: string[]
   onImagesChange?: (images: string[]) => void
+  /** Model switching */
+  currentModel?: string
+  modelList?: ModelItem[]
+  onModelChange?: (model: string) => void
 }
 
 /** Convert a File/Blob to a data URL */
@@ -36,17 +36,19 @@ function fileToDataUrl(file: Blob): Promise<string> {
 }
 
 const InputBar = forwardRef<HTMLTextAreaElement, InputBarProps>(
-  ({ value, onChange, onSubmit, placeholder, loading, isHome, thinkingEffort, onThinkingEffortChange, onArrowUp, onArrowDown, onBackspaceClear, images, onImagesChange }, ref) => {
+  ({ value, onChange, onSubmit, placeholder, loading, isHome, thinkingEffort, onThinkingEffortChange, onArrowUp, onArrowDown, onBackspaceClear, images, onImagesChange, currentModel, modelList, onModelChange }, ref) => {
     const internalRef = useRef<HTMLTextAreaElement>(null)
     const textareaRef = (ref as React.RefObject<HTMLTextAreaElement>) || internalRef
-    const [isDragOver, setIsDragOver] = useState(false)
+    const [showModelPicker, setShowModelPicker] = useState(false)
+    const modelBtnRef = useRef<HTMLDivElement>(null)
+    const modelDropdownRef = useRef<HTMLDivElement>(null)
+    const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
 
     // Auto-resize textarea to fit content
     const autoResize = useCallback(() => {
       const el = textareaRef.current
       if (!el) return
       el.style.height = 'auto'
-      // Clamp between 1 line (~24px) and ~4 lines (~96px)
       const maxHeight = 96
       el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
       el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden'
@@ -55,6 +57,34 @@ const InputBar = forwardRef<HTMLTextAreaElement, InputBarProps>(
     useEffect(() => {
       autoResize()
     }, [value, autoResize])
+
+    // Close model picker on outside click
+    useEffect(() => {
+      if (!showModelPicker) return
+      const handler = (e: MouseEvent) => {
+        if (
+          modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node) &&
+          modelBtnRef.current && !modelBtnRef.current.contains(e.target as Node)
+        ) {
+          setShowModelPicker(false)
+        }
+      }
+      document.addEventListener('mousedown', handler)
+      return () => document.removeEventListener('mousedown', handler)
+    }, [showModelPicker])
+
+    const toggleModelPicker = useCallback(() => {
+      if (showModelPicker) {
+        setShowModelPicker(false)
+        return
+      }
+      // Calculate position
+      if (modelBtnRef.current) {
+        const rect = modelBtnRef.current.getBoundingClientRect()
+        setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+      }
+      setShowModelPicker(true)
+    }, [showModelPicker])
 
     const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
       const items = e.clipboardData.items
@@ -86,7 +116,6 @@ const InputBar = forwardRef<HTMLTextAreaElement, InputBarProps>(
       if (e.nativeEvent.isComposing || e.key === 'Process') return
 
       if ((e.code === 'Enter' || e.code === 'NumpadEnter') && e.shiftKey) {
-        // Shift+Enter: insert newline (default textarea behavior, don't prevent)
         return
       }
 
@@ -109,7 +138,6 @@ const InputBar = forwardRef<HTMLTextAreaElement, InputBarProps>(
       }
 
       if (e.code === 'Backspace' && value.length === 0) {
-        // Remove last image if there are any and text is empty
         if (images && images.length > 0) {
           e.preventDefault()
           handleRemoveImage(images.length - 1)
@@ -120,6 +148,8 @@ const InputBar = forwardRef<HTMLTextAreaElement, InputBarProps>(
     }
 
     const hasImages = images && images.length > 0
+    const hasModelSwitcher = modelList && modelList.length > 1 && onModelChange
+    const displayModel = currentModel || ''
 
     return (
       <div className={`input-bar ${hasImages ? 'input-bar-with-images' : ''}`}>
@@ -141,11 +171,19 @@ const InputBar = forwardRef<HTMLTextAreaElement, InputBarProps>(
           </div>
         )}
         <div className="input-bar-row">
-          <div className="input-icon no-drag">
+          <div
+            ref={modelBtnRef}
+            className={`input-icon no-drag ${hasModelSwitcher ? 'input-icon-clickable' : ''}`}
+            onClick={hasModelSwitcher ? toggleModelPicker : undefined}
+            title={hasModelSwitcher ? `当前模型: ${displayModel}\n点击切换` : displayModel}
+          >
             {loading ? (
               <Loader2 size={20} className="spinning" />
             ) : (
-              <ClaudeIcon size={19} />
+              <ProviderIcon modelId={displayModel} size={19} />
+            )}
+            {hasModelSwitcher && !loading && (
+              <ChevronDown size={10} className="input-icon-caret" />
             )}
           </div>
           <textarea
@@ -167,6 +205,38 @@ const InputBar = forwardRef<HTMLTextAreaElement, InputBarProps>(
             />
           )}
         </div>
+
+        {/* Model picker dropdown */}
+        {showModelPicker && hasModelSwitcher && dropdownPos && (
+          <div
+            ref={modelDropdownRef}
+            className="model-picker-dropdown"
+            style={{ top: dropdownPos.top, left: dropdownPos.left }}
+          >
+            <div className="model-picker-title">切换模型</div>
+            {modelList!.map(m => {
+              const provider = detectProvider(m.id)
+              const isActive = m.id === currentModel
+              return (
+                <button
+                  key={m.id}
+                  className={`model-picker-option ${isActive ? 'active' : ''}`}
+                  onClick={() => {
+                    onModelChange!(m.id)
+                    setShowModelPicker(false)
+                  }}
+                >
+                  <ProviderIcon modelId={m.id} size={16} />
+                  <div className="model-picker-option-body">
+                    <span className="model-picker-option-name">{m.id}</span>
+                    <span className="model-picker-option-provider">{provider.name}</span>
+                  </div>
+                  {isActive && <Check size={14} className="model-picker-check" />}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     )
   }

@@ -1,53 +1,76 @@
 import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, Eye, EyeOff, Check, Keyboard, Plus, X } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Check, Keyboard, Plus, X, ChevronDown, ChevronRight, Server } from 'lucide-react'
 import { applyThemePreferences, themeColorOptions } from '../utils/theme'
+import type { Provider, ModelItem } from '../types/provider'
+import { generateProviderId } from '../types/provider'
+import { ProviderIcon, detectProvider } from '../utils/providers'
 
 interface SettingsViewProps {
   onBack: () => void
 }
 
 export default function SettingsView({ onBack }: SettingsViewProps) {
-  const [apiKey, setApiKey] = useState('')
-  const [apiHost, setApiHost] = useState('https://api.openai.com/v1')
+  const [providers, setProviders] = useState<Provider[]>([])
   const [model, setModel] = useState('gpt-4o-mini')
-  const [modelList, setModelList] = useState<string[]>(['gpt-4o-mini'])
+  const [modelList, setModelList] = useState<ModelItem[]>([])
   const [translateModel, setTranslateModel] = useState('')
   const [newModelName, setNewModelName] = useState('')
+  const [newModelProvider, setNewModelProvider] = useState('')
   const [showAddModel, setShowAddModel] = useState(false)
   const [shortcut, setShortcut] = useState('Alt+Space')
   const [theme, setTheme] = useState('system')
   const [themeColor, setThemeColor] = useState('indigo')
-  const [showApiKey, setShowApiKey] = useState(false)
   const [saved, setSaved] = useState(false)
   const [isRecordingShortcut, setIsRecordingShortcut] = useState(false)
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null)
+  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({})
+
+  // Add-provider state
+  const [showAddProvider, setShowAddProvider] = useState(false)
+  const [newProviderName, setNewProviderName] = useState('')
+  const [newProviderHost, setNewProviderHost] = useState('https://api.openai.com/v1')
+  const [newProviderKey, setNewProviderKey] = useState('')
 
   const addModelInputRef = useRef<HTMLInputElement>(null)
+  const addProviderNameRef = useRef<HTMLInputElement>(null)
 
   // Load config on mount
   useEffect(() => {
     (async () => {
       const config = await window.api.getAllConfig() as Record<string, unknown>
-      if (config.apiKey) setApiKey(config.apiKey as string)
-      if (config.apiHost) setApiHost(config.apiHost as string)
+      if (config.providers) setProviders(config.providers as Provider[])
       if (config.model) setModel(config.model as string)
-      if (config.modelList) setModelList(config.modelList as string[])
+      if (config.modelList) setModelList(config.modelList as ModelItem[])
       if (config.translateModel !== undefined) setTranslateModel(config.translateModel as string)
       if (config.shortcut) setShortcut(config.shortcut as string)
       if (config.theme) setTheme(config.theme as string)
       if (config.themeColor) setThemeColor(config.themeColor as string)
+
+      // Auto-expand first provider, set default new model provider
+      const provs = config.providers as Provider[] || []
+      if (provs.length > 0) {
+        setExpandedProvider(provs[0].id)
+        setNewModelProvider(provs[0].id)
+      }
     })()
   }, [])
 
-  // Focus the add-model input when it becomes visible
+  // Focus add-model input
   useEffect(() => {
     if (showAddModel) {
       setTimeout(() => addModelInputRef.current?.focus(), 50)
     }
   }, [showAddModel])
 
+  // Focus add-provider input
+  useEffect(() => {
+    if (showAddProvider) {
+      setTimeout(() => addProviderNameRef.current?.focus(), 50)
+    }
+  }, [showAddProvider])
+
   const handleSave = async () => {
-    await window.api.setConfig('apiKey', apiKey)
-    await window.api.setConfig('apiHost', apiHost)
+    await window.api.setConfig('providers', providers)
     await window.api.setConfig('model', model)
     await window.api.setConfig('modelList', modelList)
     await window.api.setConfig('translateModel', translateModel)
@@ -61,28 +84,71 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  // Provider CRUD
+  const handleAddProvider = () => {
+    const name = newProviderName.trim()
+    if (!name) return
+    const newProvider: Provider = {
+      id: generateProviderId(),
+      name,
+      apiHost: newProviderHost.trim() || 'https://api.openai.com/v1',
+      apiKey: newProviderKey.trim()
+    }
+    setProviders(prev => [...prev, newProvider])
+    setExpandedProvider(newProvider.id)
+    if (!newModelProvider) setNewModelProvider(newProvider.id)
+    setNewProviderName('')
+    setNewProviderHost('https://api.openai.com/v1')
+    setNewProviderKey('')
+    setShowAddProvider(false)
+  }
+
+  const handleDeleteProvider = (providerId: string) => {
+    // Remove provider
+    setProviders(prev => prev.filter(p => p.id !== providerId))
+    // Remove models associated with this provider
+    setModelList(prev => {
+      const remaining = prev.filter(m => m.providerId !== providerId)
+      // If active model was removed, switch to first remaining
+      if (!remaining.find(m => m.id === model) && remaining.length > 0) {
+        setModel(remaining[0].id)
+      }
+      if (!remaining.find(m => m.id === translateModel)) {
+        setTranslateModel('')
+      }
+      return remaining
+    })
+    if (expandedProvider === providerId) {
+      setExpandedProvider(null)
+    }
+  }
+
+  const handleUpdateProvider = (providerId: string, field: keyof Provider, value: string) => {
+    setProviders(prev => prev.map(p => p.id === providerId ? { ...p, [field]: value } : p))
+  }
+
+  // Model CRUD
   const handleAddModel = () => {
     const name = newModelName.trim()
-    if (!name || modelList.includes(name)) {
+    if (!name || modelList.find(m => m.id === name)) {
       setNewModelName('')
       setShowAddModel(false)
       return
     }
-    const updated = [...modelList, name]
+    const providerId = newModelProvider || providers[0]?.id || ''
+    const updated: ModelItem[] = [...modelList, { id: name, providerId }]
     setModelList(updated)
     setNewModelName('')
     setShowAddModel(false)
   }
 
-  const handleRemoveModel = (modelName: string) => {
-    const updated = modelList.filter(m => m !== modelName)
-    setModelList(updated.length > 0 ? updated : ['gpt-4o-mini'])
-    // If we removed the active default model, pick the first remaining
-    if (model === modelName) {
-      setModel(updated.length > 0 ? updated[0] : 'gpt-4o-mini')
+  const handleRemoveModel = (modelId: string) => {
+    const updated = modelList.filter(m => m.id !== modelId)
+    setModelList(updated.length > 0 ? updated : [])
+    if (model === modelId) {
+      setModel(updated.length > 0 ? updated[0].id : '')
     }
-    // If we removed the translate model, clear it
-    if (translateModel === modelName) {
+    if (translateModel === modelId) {
       setTranslateModel('')
     }
   }
@@ -105,6 +171,14 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
     }
   }
 
+  const getProviderName = (providerId: string) => {
+    return providers.find(p => p.id === providerId)?.name || '未知'
+  }
+
+  const toggleApiKeyVisibility = (providerId: string) => {
+    setShowApiKeys(prev => ({ ...prev, [providerId]: !prev[providerId] }))
+  }
+
   return (
     <div className="settings-view animate-fade-in">
       <div className="settings-header drag-region">
@@ -118,38 +192,149 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
       </div>
 
       <div className="settings-body">
-        {/* API Configuration */}
+        {/* Provider Management */}
         <div className="settings-section">
-          <h3 className="settings-section-title">API 配置</h3>
+          <h3 className="settings-section-title">供应商管理</h3>
+          <span className="settings-hint" style={{ marginBottom: 8, display: 'block' }}>
+            每个供应商拥有独立的 API 地址和密钥，模型需关联到一个供应商
+          </span>
 
-          <div className="settings-field">
-            <label className="settings-label">API Host</label>
-            <input
-              className="settings-input"
-              value={apiHost}
-              onChange={e => setApiHost(e.target.value)}
-              placeholder="https://api.openai.com/v1"
-            />
-            <span className="settings-hint">支持 OpenAI 兼容格式的 API 地址</span>
-          </div>
+          <div className="provider-list">
+            {providers.map(provider => {
+              const isExpanded = expandedProvider === provider.id
+              const providerModels = modelList.filter(m => m.providerId === provider.id)
+              return (
+                <div key={provider.id} className="provider-card">
+                  <div
+                    className="provider-card-header"
+                    onClick={() => setExpandedProvider(isExpanded ? null : provider.id)}
+                  >
+                    <div className="provider-card-title">
+                      <Server size={14} className="provider-card-icon" />
+                      <span className="provider-card-name">{provider.name}</span>
+                      <span className="provider-card-badge">{providerModels.length} 个模型</span>
+                    </div>
+                    <div className="provider-card-actions">
+                      {providers.length > 1 && (
+                        <button
+                          className="provider-card-delete"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteProvider(provider.id) }}
+                          title="删除供应商"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="provider-card-body">
+                      <div className="settings-field">
+                        <label className="settings-label">名称</label>
+                        <input
+                          className="settings-input"
+                          value={provider.name}
+                          onChange={e => handleUpdateProvider(provider.id, 'name', e.target.value)}
+                          placeholder="供应商名称"
+                        />
+                      </div>
+                      <div className="settings-field">
+                        <label className="settings-label">API Host</label>
+                        <input
+                          className="settings-input"
+                          value={provider.apiHost}
+                          onChange={e => handleUpdateProvider(provider.id, 'apiHost', e.target.value)}
+                          placeholder="https://api.openai.com/v1"
+                        />
+                      </div>
+                      <div className="settings-field">
+                        <label className="settings-label">
+                          API Key
+                          {(() => {
+                            const keyCount = provider.apiKey.split(',').map(k => k.trim()).filter(Boolean).length
+                            return keyCount > 1 ? <span className="provider-key-count">{keyCount} 个密钥 · 轮询</span> : null
+                          })()}
+                        </label>
+                        <div className="settings-input-group">
+                          <input
+                            className="settings-input"
+                            type={showApiKeys[provider.id] ? 'text' : 'password'}
+                            value={provider.apiKey}
+                            onChange={e => handleUpdateProvider(provider.id, 'apiKey', e.target.value)}
+                            placeholder="sk-..."
+                          />
+                          <button
+                            className="settings-input-action"
+                            onClick={() => toggleApiKeyVisibility(provider.id)}
+                          >
+                            {showApiKeys[provider.id] ? <EyeOff size={15} /> : <Eye size={15} />}
+                          </button>
+                        </div>
+                        <span className="settings-hint">支持多个密钥，用英文逗号分隔，自动轮询切换</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
 
-          <div className="settings-field">
-            <label className="settings-label">API Key</label>
-            <div className="settings-input-group">
-              <input
-                className="settings-input"
-                type={showApiKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder="sk-..."
-              />
+            {/* Add Provider */}
+            {showAddProvider ? (
+              <div className="provider-card provider-card-new">
+                <div className="provider-card-body">
+                  <div className="settings-field">
+                    <label className="settings-label">供应商名称</label>
+                    <input
+                      ref={addProviderNameRef}
+                      className="settings-input"
+                      value={newProviderName}
+                      onChange={e => setNewProviderName(e.target.value)}
+                      placeholder="如：DeepSeek、阿里云百炼…"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleAddProvider()
+                        if (e.key === 'Escape') { setShowAddProvider(false); setNewProviderName(''); setNewProviderHost('https://api.openai.com/v1'); setNewProviderKey('') }
+                      }}
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label className="settings-label">API Host</label>
+                    <input
+                      className="settings-input"
+                      value={newProviderHost}
+                      onChange={e => setNewProviderHost(e.target.value)}
+                      placeholder="https://api.openai.com/v1"
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label className="settings-label">API Key</label>
+                    <input
+                      className="settings-input"
+                      type="password"
+                      value={newProviderKey}
+                      onChange={e => setNewProviderKey(e.target.value)}
+                      placeholder="sk-...（多个密钥用逗号分隔）"
+                    />
+                    <span className="settings-hint">支持用英文逗号分隔多个 Key，自动轮询</span>
+                  </div>
+                  <div className="provider-card-footer">
+                    <button className="provider-btn provider-btn-cancel" onClick={() => { setShowAddProvider(false); setNewProviderName(''); setNewProviderHost('https://api.openai.com/v1'); setNewProviderKey('') }}>
+                      取消
+                    </button>
+                    <button className="provider-btn provider-btn-confirm" onClick={handleAddProvider}>
+                      添加
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
               <button
-                className="settings-input-action"
-                onClick={() => setShowApiKey(!showApiKey)}
+                className="provider-add-btn"
+                onClick={() => setShowAddProvider(true)}
               >
-                {showApiKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                <Plus size={14} />
+                <span>添加供应商</span>
               </button>
-            </div>
+            )}
           </div>
         </div>
 
@@ -162,12 +347,14 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
             <label className="settings-label">已添加模型</label>
             <div className="model-chip-list">
               {modelList.map(m => (
-                <div key={m} className={`model-chip ${model === m ? 'active' : ''}`}>
-                  <span className="model-chip-name">{m}</span>
+                <div key={m.id} className={`model-chip ${model === m.id ? 'active' : ''}`}>
+                  <ProviderIcon modelId={m.id} size={14} />
+                  <span className="model-chip-name">{m.id}</span>
+                  <span className="model-chip-provider-tag">{getProviderName(m.providerId)}</span>
                   {modelList.length > 1 && (
                     <button
                       className="model-chip-remove"
-                      onClick={() => handleRemoveModel(m)}
+                      onClick={() => handleRemoveModel(m.id)}
                       title="移除模型"
                     >
                       <X size={12} />
@@ -176,7 +363,15 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
                 </div>
               ))}
               {showAddModel ? (
-                <div className="model-chip-add-input">
+                <div
+                  className="model-chip-add-input"
+                  onBlur={(e) => {
+                    // Only close if focus moved outside this container entirely
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      handleAddModel()
+                    }
+                  }}
+                >
                   <input
                     ref={addModelInputRef}
                     className="model-add-field"
@@ -186,9 +381,18 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
                       if (e.key === 'Enter') handleAddModel()
                       if (e.key === 'Escape') { setShowAddModel(false); setNewModelName('') }
                     }}
-                    onBlur={handleAddModel}
                     placeholder="输入模型名称..."
                   />
+                  <select
+                    className="model-add-provider-select"
+                    value={newModelProvider}
+                    onChange={e => setNewModelProvider(e.target.value)}
+                    title="选择供应商"
+                  >
+                    {providers.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
                 </div>
               ) : (
                 <button
@@ -200,7 +404,7 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
                 </button>
               )}
             </div>
-            <span className="settings-hint">点击「添加」输入模型 ID，如 deepseek-chat、claude-3-5-sonnet 等</span>
+            <span className="settings-hint">添加模型时选择所属供应商，确保 API 请求路由正确</span>
           </div>
 
           {/* Default model selector */}
@@ -212,7 +416,7 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
               onChange={e => setModel(e.target.value)}
             >
               {modelList.map(m => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m.id} value={m.id}>{m.id}（{getProviderName(m.providerId)}）</option>
               ))}
             </select>
             <span className="settings-hint">用于问答、总结、解释等功能</span>
@@ -228,7 +432,7 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
             >
               <option value="">跟随默认模型</option>
               {modelList.map(m => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m.id} value={m.id}>{m.id}（{getProviderName(m.providerId)}）</option>
               ))}
             </select>
             <span className="settings-hint">翻译功能单独使用的模型，留空则跟随默认</span>

@@ -424,6 +424,103 @@ html, body, #root {
   align-items: center;
   flex-shrink: 0;
   margin-top: 3px;
+  gap: 2px;
+  position: relative;
+}
+
+.input-icon-clickable {
+  cursor: pointer;
+  padding: 3px 2px;
+  border-radius: var(--radius-sm);
+  margin: 0;
+  margin-top: 0px;
+  transition: background var(--transition-fast);
+}
+
+.input-icon-clickable:hover {
+  background: var(--bg-hover);
+}
+
+.input-icon-caret {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  margin-left: -1px;
+}
+
+/* ===== Model Picker Dropdown ===== */
+.model-picker-dropdown {
+  position: fixed;
+  min-width: 220px;
+  max-width: 300px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  z-index: 9999;
+  animation: fadeIn 150ms ease-out;
+  -webkit-app-region: no-drag;
+}
+
+.model-picker-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 10px 4px;
+}
+
+.model-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  text-align: left;
+  font-family: var(--font-family);
+}
+
+.model-picker-option:hover {
+  background: var(--bg-hover);
+}
+
+.model-picker-option.active {
+  background: var(--accent-soft);
+}
+
+.model-picker-option-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.model-picker-option-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-picker-option-provider {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.model-picker-check {
+  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .input-field {
@@ -1189,19 +1286,230 @@ html, body, #root {
 
 .model-chip-add-input {
   display: inline-flex;
+  align-items: center;
 }
 
 .model-add-field {
-  width: 160px;
+  width: 120px;
   padding: 4px 10px;
   background: var(--bg-secondary);
   border: 1px solid var(--accent);
-  border-radius: 999px;
+  border-radius: 999px 0 0 999px;
   color: var(--text-primary);
   font-size: 12px;
   font-family: var(--font-family);
   outline: none;
   animation: fadeIn 150ms ease-out;
+}
+
+.model-add-provider-select {
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  border-left: none;
+  border-radius: 0 999px 999px 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--font-family);
+  outline: none;
+  cursor: pointer;
+  max-width: 100px;
+}
+
+.model-chip-provider-tag {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+/* ===== Provider Cards ===== */
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.provider-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  overflow: hidden;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.provider-card:hover {
+  border-color: var(--border-strong);
+}
+
+.provider-card-new {
+  border-style: dashed;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--bg-secondary));
+}
+
+.provider-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  user-select: none;
+}
+
+.provider-card-header:hover {
+  background: var(--bg-hover);
+}
+
+.provider-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.provider-card-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.provider-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.provider-card-badge {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 2px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.provider-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.provider-card-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0;
+}
+
+.provider-card-delete:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
+}
+
+.provider-card-body {
+  padding: 2px 14px 14px;
+  border-top: 1px solid var(--border);
+  animation: fadeIn 150ms ease-out;
+}
+
+.provider-card-body .settings-field {
+  margin-bottom: 10px;
+}
+
+.provider-card-body .settings-field:last-child {
+  margin-bottom: 0;
+}
+
+.provider-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.provider-btn {
+  padding: 5px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+}
+
+.provider-btn-cancel {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.provider-btn-cancel:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.provider-btn-confirm {
+  background: var(--accent-gradient);
+  color: white;
+}
+
+.provider-btn-confirm:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.provider-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.provider-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Key rotation badge */
+.provider-key-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 1px 6px;
+  border-radius: 99px;
+  margin-left: 6px;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 /* ===== Image Preview Strip (InputBar) ===== */

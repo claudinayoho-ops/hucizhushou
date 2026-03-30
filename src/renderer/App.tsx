@@ -9,6 +9,7 @@ import Footer from './components/Footer'
 import SettingsView from './components/SettingsView'
 import { applyThemePreferences } from './utils/theme'
 import type { ThinkingEffort } from './components/ThinkingButton'
+import type { ModelItem } from './types/provider'
 import {
   streamChat,
   createChatMessages,
@@ -39,6 +40,8 @@ export default function App() {
   const [thinkingEffort, setThinkingEffort] = useState<ThinkingEffort>('default')
   const [streamThinking, setStreamThinking] = useState('')
   const [attachedImages, setAttachedImages] = useState<string[]>([])
+  const [currentModel, setCurrentModel] = useState('gpt-4o-mini')
+  const [modelList, setModelList] = useState<ModelItem[]>([])
 
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -48,7 +51,7 @@ export default function App() {
   // The reference text is either clipboard or user input
   const referenceText = clipboardText || userInput
 
-  // Apply theme on mount & load thinking effort
+  // Apply theme on mount & load config
   useEffect(() => {
     if (!window.api) return
     ;(async () => {
@@ -60,6 +63,8 @@ export default function App() {
       if (config.thinkingEffort) {
         setThinkingEffort(config.thinkingEffort as ThinkingEffort)
       }
+      if (config.model) setCurrentModel(config.model as string)
+      if (config.modelList) setModelList(config.modelList as ModelItem[])
     })()
   }, [])
 
@@ -67,6 +72,12 @@ export default function App() {
   const handleThinkingEffortChange = useCallback((value: ThinkingEffort) => {
     setThinkingEffort(value)
     window.api?.setConfig('thinkingEffort', value)
+  }, [])
+
+  // Quick model switch from InputBar
+  const handleModelChange = useCallback((model: string) => {
+    setCurrentModel(model)
+    window.api?.setConfig('model', model)
   }, [])
 
   const handleTranslateAbortControllerChange = useCallback((controller: AbortController | null) => {
@@ -402,9 +413,16 @@ export default function App() {
   // ===== Render routes =====
 
   if (route === 'settings') {
+    const handleSettingsBack = async () => {
+      // Reload model config in case user changed it in settings
+      const config = await window.api.getAllConfig() as Record<string, unknown>
+      if (config.model) setCurrentModel(config.model as string)
+      if (config.modelList) setModelList(config.modelList as ModelItem[])
+      setRoute('home')
+    }
     return (
       <div className="app-container">
-        <SettingsView onBack={() => setRoute('home')} />
+        <SettingsView onBack={handleSettingsBack} />
       </div>
     )
   }
@@ -425,6 +443,9 @@ export default function App() {
               onThinkingEffortChange={handleThinkingEffortChange}
               images={attachedImages}
               onImagesChange={setAttachedImages}
+              currentModel={currentModel}
+              modelList={modelList}
+              onModelChange={handleModelChange}
             />
             <div className="divider" />
           </>
@@ -496,6 +517,9 @@ export default function App() {
         onBackspaceClear={handleBackspaceClear}
         images={attachedImages}
         onImagesChange={setAttachedImages}
+        currentModel={currentModel}
+        modelList={modelList}
+        onModelChange={handleModelChange}
       />
       <div className="divider" />
       <ClipboardPreview text={clipboardText} onClear={clearClipboard} />

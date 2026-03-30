@@ -6,10 +6,13 @@ import Store from 'electron-store'
 
 const store = new Store({
   defaults: {
+    // Legacy keys (kept for migration)
     apiKey: '',
     apiHost: 'https://api.openai.com/v1',
+    // Multi-provider system
+    providers: [] as Array<{ id: string; name: string; apiHost: string; apiKey: string }>,
     model: 'gpt-4o-mini',
-    modelList: ['gpt-4o-mini'],
+    modelList: [] as Array<{ id: string; providerId: string }>,
     translateModel: '',
     shortcut: 'Alt+Space',
     targetLanguage: 'zh-CN',
@@ -19,6 +22,47 @@ const store = new Store({
     windowHeight: 440
   }
 })
+
+/**
+ * Migrate legacy single-provider config to multi-provider format.
+ * Runs once on first launch after update — preserves existing apiHost/apiKey/models.
+ */
+function migrateToMultiProvider(): void {
+  const providers = store.get('providers') as Array<{ id: string; name: string; apiHost: string; apiKey: string }>
+  const modelList = store.get('modelList') as unknown
+
+  // Already migrated if providers array is non-empty
+  if (providers && providers.length > 0) return
+
+  const legacyHost = (store.get('apiHost') as string) || 'https://api.openai.com/v1'
+  const legacyKey = (store.get('apiKey') as string) || ''
+
+  // Create the first provider from legacy data
+  const defaultProvider = {
+    id: 'provider_default',
+    name: '默认供应商',
+    apiHost: legacyHost,
+    apiKey: legacyKey
+  }
+
+  store.set('providers', [defaultProvider])
+
+  // Migrate modelList from string[] to ModelItem[]
+  if (Array.isArray(modelList)) {
+    const isLegacy = modelList.length === 0 || typeof modelList[0] === 'string'
+    if (isLegacy) {
+      const legacyModels = modelList as string[]
+      const migratedModels = (legacyModels.length > 0 ? legacyModels : ['gpt-4o-mini']).map(m => ({
+        id: m,
+        providerId: defaultProvider.id
+      }))
+      store.set('modelList', migratedModels)
+    }
+  } else {
+    // No model list at all — create default
+    store.set('modelList', [{ id: 'gpt-4o-mini', providerId: defaultProvider.id }])
+  }
+}
 
 type ThemeMode = 'system' | 'light' | 'dark'
 type ThemeColor = 'indigo' | 'emerald' | 'amber' | 'rose' | 'ocean'
@@ -199,6 +243,9 @@ app.commandLine.appendSwitch('wm-window-animations-disabled')
 
 // App lifecycle
 app.whenReady().then(() => {
+  // Migrate legacy single-provider data to multi-provider format
+  migrateToMultiProvider()
+
   // Set theme
   const theme = store.get('theme') as string
   if (theme && theme !== 'system') {

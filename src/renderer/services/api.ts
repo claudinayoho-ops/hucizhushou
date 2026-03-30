@@ -32,12 +32,71 @@ export interface StreamCallbacks {
   onError: (error: Error) => void
 }
 
+interface ProviderConfig {
+  id: string
+  name: string
+  apiHost: string
+  apiKey: string
+}
+
+interface ModelItemConfig {
+  id: string
+  providerId: string
+}
+
+/**
+ * Round-robin API key rotation for providers with multiple comma-separated keys.
+ * Mirrors Cherry Studio's BaseApiClient.getApiKey() implementation.
+ * In-memory tracker — resets on window reload (acceptable for a desktop app).
+ */
+const lastUsedKeyIndex = new Map<string, number>()
+
+function rotateApiKey(provider: ProviderConfig): string {
+  const raw = provider.apiKey || ''
+  const keys = raw.split(',').map(k => k.trim()).filter(Boolean)
+
+  if (keys.length === 0) return ''
+  if (keys.length === 1) return keys[0]
+
+  // Round-robin: advance to next key
+  const prevIndex = lastUsedKeyIndex.get(provider.id) ?? -1
+  const nextIndex = (prevIndex + 1) % keys.length
+  lastUsedKeyIndex.set(provider.id, nextIndex)
+  return keys[nextIndex]
+}
+
 async function getConfig(): Promise<{ apiKey: string; apiHost: string; model: string; translateModel: string }> {
-  const apiKey = (await window.api.getConfig('apiKey')) as string || ''
-  const apiHost = (await window.api.getConfig('apiHost')) as string || 'https://api.openai.com/v1'
+  const providers = (await window.api.getConfig('providers')) as ProviderConfig[] || []
+  const modelList = (await window.api.getConfig('modelList')) as ModelItemConfig[] || []
   const model = (await window.api.getConfig('model')) as string || 'gpt-4o-mini'
   const translateModel = (await window.api.getConfig('translateModel')) as string || ''
+
+  // Find the provider for the current model
+  const modelItem = modelList.find(m => m.id === model)
+  const provider = modelItem
+    ? providers.find(p => p.id === modelItem.providerId)
+    : providers[0] // fallback to first provider
+
+  const apiKey = provider ? rotateApiKey(provider) : ''
+  const apiHost = provider?.apiHost || 'https://api.openai.com/v1'
+
   return { apiKey, apiHost, model, translateModel }
+}
+
+/** Resolve the provider for a specific model ID (with key rotation) */
+async function getProviderForModel(modelId: string): Promise<{ apiKey: string; apiHost: string }> {
+  const providers = (await window.api.getConfig('providers')) as ProviderConfig[] || []
+  const modelList = (await window.api.getConfig('modelList')) as ModelItemConfig[] || []
+
+  const modelItem = modelList.find(m => m.id === modelId)
+  const provider = modelItem
+    ? providers.find(p => p.id === modelItem.providerId)
+    : providers[0]
+
+  return {
+    apiKey: provider ? rotateApiKey(provider) : '',
+    apiHost: provider?.apiHost || 'https://api.openai.com/v1'
+  }
 }
 
 export type ThinkingEffortLevel = 'default' | 'off' | 'low' | 'medium' | 'high'
@@ -66,10 +125,20 @@ export async function streamChat(
   thinkingEffort?: ThinkingEffortLevel,
   options?: { modelOverride?: string; useTranslateModel?: boolean }
 ): Promise<void> {
-  const { apiKey, apiHost, model, translateModel } = await getConfig()
+  const { apiKey: defaultKey, apiHost: defaultHost, model, translateModel } = await getConfig()
   // Determine which model to use: explicit override > translate model > default
   const effectiveModel = options?.modelOverride
     || (options?.useTranslateModel && translateModel ? translateModel : model)
+
+  // If effective model differs from default, resolve its provider separately
+  let apiKey = defaultKey
+  let apiHost = defaultHost
+  if (effectiveModel !== model) {
+    const resolved = await getProviderForModel(effectiveModel)
+    apiKey = resolved.apiKey
+    apiHost = resolved.apiHost
+  }
+
   let fullText = ''
   let fullThinking = ''
   let isThinking = false

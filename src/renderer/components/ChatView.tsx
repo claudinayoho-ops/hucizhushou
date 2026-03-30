@@ -27,7 +27,8 @@ const ClaudeSparkle = ({ size = 14 }: { size?: number }) => (
 
 /** Collapsible thinking block */
 function ThinkingBlock({ text, isStreaming }: { text: string; isStreaming: boolean }) {
-  const [expanded, setExpanded] = useState(true)
+  // Streaming blocks start expanded; finished/history blocks start collapsed
+  const [expanded, setExpanded] = useState(isStreaming)
 
   return (
     <div className="thinking-block">
