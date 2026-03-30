@@ -1,0 +1,161 @@
+/* Selection Toolbar Styles — aligned with Cherry Studio */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-app-region: no-drag;
+}
+
+:root {
+  --selection-toolbar-height: 36px;
+  --selection-toolbar-font-size: 14px;
+  --selection-toolbar-border-radius: 8px;
+  --selection-toolbar-box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.35);
+  --selection-toolbar-base-background: rgba(20, 20, 20, 0.95);
+  --selection-toolbar-hover-base: rgba(255, 255, 255, 0.08);
+  --selection-toolbar-accent: #6366f1;
+  --selection-toolbar-accent-rgb: 99, 102, 241;
+  --selection-toolbar-background: color-mix(in srgb, var(--selection-toolbar-base-background) 88%, rgb(var(--selection-toolbar-accent-rgb)) 12%);
+  --selection-toolbar-padding: 0;
+  --selection-toolbar-margin: 2px 2px 4px 2px;
+  --selection-toolbar-border: none;
+
+  --selection-toolbar-button-text-color: rgba(255, 255, 245, 0.9);
+  --selection-toolbar-button-icon-color: var(--selection-toolbar-button-text-color);
+  --selection-toolbar-button-bgcolor: transparent;
+  --selection-toolbar-button-bgcolor-hover: color-mix(in srgb, var(--selection-toolbar-hover-base) 68%, rgb(var(--selection-toolbar-accent-rgb)) 32%);
+  --selection-toolbar-button-padding: 0 10px;
+  --selection-toolbar-button-last-padding: 0 12px 0 10px;
+  --selection-toolbar-button-margin: 0;
+  --selection-toolbar-button-border-radius: 0;
+  --selection-toolbar-button-border: none;
+  --selection-toolbar-button-box-shadow: none;
+
+  --selection-toolbar-buttons-border-width: 0.5px;
+  --selection-toolbar-buttons-border-style: solid;
+  --selection-toolbar-buttons-border-color: color-mix(in srgb, rgba(255, 255, 255, 0.2) 72%, rgb(var(--selection-toolbar-accent-rgb)) 28%);
+  --selection-toolbar-buttons-border-radius: var(--selection-toolbar-border-radius);
+
+  --font-family-heading: 'Poppins', sans-serif;
+  --font-family-body: 'Lora', serif;
+  --font-family: var(--font-family-heading);
+
+  --color-primary: var(--selection-toolbar-accent);
+  --color-error: #f44336;
+}
+
+html[data-color-theme='indigo'] {
+  --selection-toolbar-accent: #6366f1;
+  --selection-toolbar-accent-rgb: 99, 102, 241;
+}
+
+html[data-color-theme='emerald'] {
+  --selection-toolbar-accent: #10b981;
+  --selection-toolbar-accent-rgb: 16, 185, 129;
+}
+
+html[data-color-theme='amber'] {
+  --selection-toolbar-accent: #f59e0b;
+  --selection-toolbar-accent-rgb: 245, 158, 11;
+}
+
+html[data-color-theme='rose'] {
+  --selection-toolbar-accent: #f43f5e;
+  --selection-toolbar-accent-rgb: 244, 63, 94;
+}
+
+html[data-color-theme='ocean'] {
+  --selection-toolbar-accent: #0ea5e9;
+  --selection-toolbar-accent-rgb: 14, 165, 233;
+}
+
+html {
+  background: transparent !important;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+}
+
+.toolbar-container {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1;
+  border-radius: var(--selection-toolbar-border-radius);
+  border: var(--selection-toolbar-border);
+  box-shadow: var(--selection-toolbar-box-shadow);
+  background: var(--selection-toolbar-background);
+  padding: var(--selection-toolbar-padding);
+  margin: var(--selection-toolbar-margin);
+  user-select: none;
+  overflow: hidden;
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: stretch;
+  flex: 1;
+  background: transparent;
+  border: var(--selection-toolbar-buttons-border-width) var(--selection-toolbar-buttons-border-style) var(--selection-toolbar-buttons-border-color);
+  border-radius: var(--selection-toolbar-buttons-border-radius);
+}
+
+.toolbar-btn {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  margin: var(--selection-toolbar-button-margin);
+  padding: var(--selection-toolbar-button-padding);
+  background-color: var(--selection-toolbar-button-bgcolor);
+  border-radius: var(--selection-toolbar-button-border-radius);
+  border: var(--selection-toolbar-button-border);
+  box-shadow: var(--selection-toolbar-button-box-shadow);
+  font-family: inherit;
+  font-size: var(--selection-toolbar-font-size);
+  color: var(--selection-toolbar-button-text-color);
+  transition: all 0.1s ease-in-out;
+  white-space: nowrap;
+  outline: none;
+}
+
+.toolbar-btn:last-child {
+  flex: 1.5;
+  border-radius: 0 var(--selection-toolbar-border-radius) var(--selection-toolbar-border-radius) 0;
+  padding: var(--selection-toolbar-button-last-padding);
+}
+
+.toolbar-btn:first-child {
+  border-radius: var(--selection-toolbar-border-radius) 0 0 var(--selection-toolbar-border-radius);
+}
+
+.toolbar-btn:only-child {
+  border-radius: var(--selection-toolbar-border-radius);
+}
+
+.toolbar-btn:hover {
+  background-color: var(--selection-toolbar-button-bgcolor-hover);
+  color: var(--color-primary);
+}
+
+.toolbar-btn .btn-text {
+  line-height: 1.1;
+  transition: color 0.1s ease-in-out;
+}
+
+.toolbar-btn:hover .btn-text {
+  color: var(--color-primary);
+}
+
+/* Copy success state */
+.toolbar-btn.copy-success {
+  color: #22c55e;
+}
+.toolbar-btn.copy-success:hover {
+  color: #22c55e;
+}

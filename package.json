@@ -1,0 +1,63 @@
+{
+  "name": "huaci-assistant",
+  "version": "1.0.0",
+  "description": "轻量划词助手 — 支持回答、翻译、总结、解释",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "build:win": "electron-vite build && electron-builder --win",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:linux": "electron-vite build && electron-builder --linux"
+  },
+  "dependencies": {
+    "@fontsource/lora": "^5.2.8",
+    "@fontsource/poppins": "^5.2.7",
+    "electron-store": "^8.2.0",
+    "selection-hook": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "highlight.js": "^11.10.0",
+    "lucide-react": "^0.460.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.1",
+    "rehype-highlight": "^7.0.0",
+    "remark-gfm": "^4.0.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0"
+  },
+  "build": {
+    "appId": "com.huaci.assistant",
+    "productName": "划词助手",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*"
+    ],
+    "npmRebuild": false,
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/selection-hook/**"
+    ],
+    "win": {
+      "icon": "resources/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
