@@ -4,3 +4,4 @@ dist/
 .env
 *.log
 cherry-studio-main/
+builder_error.txt
